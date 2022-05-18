@@ -56,7 +56,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 					dataNode.add(nuevo);
 				}
 				ChunkImpl newChunk = new ChunkImpl(dataNode);
-				mapaChunk.add(newChunk);
+				mapaChunks.add(newChunk);
 			}
 		}
 
@@ -69,7 +69,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 					dataNode.add(nuevo);
 				}
 				ChunkImpl newChunk = new ChunkImpl(dataNode);
-				mapaChunk.add(newChunk);
+				mapaChunks.add(newChunk);
 				result.add(newChunk);
 			}else{										//Si existe el chunk, lo añado a la lista resultado
 				result.add(mapaChunks.get(i));
