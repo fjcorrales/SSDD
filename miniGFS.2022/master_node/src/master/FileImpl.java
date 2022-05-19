@@ -32,7 +32,9 @@ public class FileImpl extends UnicastRemoteObject implements File {
 	// obtiene información de ubicación de los chunks especificados del fichero
 	public List <Chunk> getChunkDescriptors(int nchunk, int size) throws RemoteException {
 		List<Chunk> result = new ArrayList<Chunk>();
-		if(!mapaChunks.containsKey(i)){							//Si no existen chunks, creo el chunk y lo añado al mapa
+		
+		for(int i = nchunk ; i<nchunk + size ; i++){
+			if(!mapaChunks.containsKey(i)){							//Si no existen chunks, creo el hueco y lo aniadimos al mapa
 				List<DataNode> dataNode = new ArrayList<DataNode>();
 				//for para hacer nueva lista de nodos por replica
 				for(int j = 0 ; j<repFact ; j++){
@@ -41,8 +43,8 @@ public class FileImpl extends UnicastRemoteObject implements File {
 				}
 				ChunkImpl newChunk = new ChunkImpl(dataNode);
 				mapaChunks.put(i, newChunk);
-				result.add(null);
-			}else{										//Si existe el chunk, lo añado a la lista resultado
+				result.add(null);									//aniadimos un null a la lista devuelta para indicar el hueco en el fichero
+			}else{													//Si existe el chunk, lo añado a la lista resultado
 				result.add(mapaChunks.get(i));
 			}
 		}
@@ -84,4 +86,3 @@ public class FileImpl extends UnicastRemoteObject implements File {
 		return result;
 	}
 }
-
