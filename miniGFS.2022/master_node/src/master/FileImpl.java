@@ -52,7 +52,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 		for(int i = nchunk ; i<nchunk ; i++){
 			if(!mapaChunks.containsKey(i)){
 				List<DataNode> dataNode = new ArrayList<DataNode>();
-				for(int j = 0 ; j<repFact ; i++){
+				for(int j = 0 ; j<repFact ; j++){
 					DataNode nuevo = manager.selectDataNode();
 					dataNode.add(nuevo);
 				}
@@ -65,7 +65,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 			if(!mapaChunks.containsKey(i)){							//Si no existen chunks, creo el chunk y lo añado al mapa
 				List<DataNode> dataNode = new ArrayList<DataNode>();
 				//for para hacer nueva lista de nodos por replica
-				for(int j = 0 ; j<repFact ; i++){
+				for(int j = 0 ; j<repFact ; j++){
 					DataNode nuevo = manager.selectDataNode();
 					dataNode.add(nuevo);
 				}
