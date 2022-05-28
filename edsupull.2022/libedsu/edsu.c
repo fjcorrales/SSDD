@@ -10,6 +10,8 @@
 #include "edsu.h"
 #include "comun.h"
 
+//VARIABLES GLOBALES puede que este mal declararla aqui
+int nclientes = 0;
 // se ejecuta antes que el main de la aplicación
 __attribute__((constructor)) void inicio(void){
     if (begin_clnt()<0) {
@@ -32,52 +34,36 @@ __attribute__((destructor)) void fin(void){
 
 // operaciones que implementan la funcionalidad del proyecto
 int begin_clnt(void){
+
 	int bytenum;
-	char host[100];
-	char puerto[10];
-	char buff[100];
-
-	//Tema de las variables de entorno con comprobacion de fallos, puede hacerse tambien sin el control de fallos host=getnev(...) etc
-	if(getenv("BROKER_HOST")){
-		snprintf(host, 100, "%s", getenv("BROKER_HOST"));
-	}else{
-		perror("no se ha especificado el host");
-		return(-1);
-	}
-
-	if(getenv("BROKER_PORT")){
-		snprintf(puerto, 10, "%s", getenv("BROKER_PORT"));
-	}else{
-		perror("no se ha especificado el puerto");
-		return(-1);
-	}
-
-	printf("%s\n", host);
-	printf("%s\n", puerto);
+	char* host[100] = getenv("BROKER_HOST");
+	char* puerto[10] = getenv("BROKER_PORT");
+	char* buff[100];
+	int sockfd, connfd;
+	struct sockaddr_in servaddr, clientaddr;
+	struct hostent *host_info;
 
 	//Creacion del socket
-	int sockfd;
-	struct sockaddr_in servaddr;
-
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd ==-1){
-		perror("El cliente no ha podido crear el socket\n");
+		perror("[ERROR] cliente no ha podido crear el socket\n");
 		return -1;
 	}
 
-	memset(&servaddr, 0, sizeof(servaddr));
-
+	host_info = gethostbyname(argv[1]);
 	//Asignamos host y puerto
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = inet_addr(host);
+	servaddr.sin_addr.s_addr = INADDR_ANY;
 	servaddr.sin_port = htons(puerto);
 
 	//intentamos la conexion de cliente a socket y de socket a servidor
-	if(connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0){
+	if(connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
 		perror("La conexion al servidor ha fallado\n");
-		return -1;
+		close(sockfd);
+		return -1;host_info=gethostbyname(argv[1]);
 	}
 	return 0;
+
 }
 int end_clnt(void){
     return 0;
