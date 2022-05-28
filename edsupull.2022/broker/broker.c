@@ -9,6 +9,27 @@
 #include <set.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+
+//Cuando se crea el thread, llama a esta funcion de rutina "el main"
+void *servicio(void *arg){
+        int s_srv, tam;
+        s_srv=(long) arg;
+        //while (recv(s_srv, &tam, sizeof(tam), MSG_WAITALL)>0) {
+        recv(s_srv, &tam, sizeof(tam), MSG_WAITALL); //Puede ser buena idea cambiart el MSG por 0
+        int tamn=ntohl(tam);
+        char *dato = malloc(tamn);
+        send(s_srv, dato, tamn, 0);
+	//send(s_srv, "buenas tardes", tamn, 0); //Para debugguear
+        close(s_srv);
+	return NULL;
+}
+
+//para mas adelante
+struct cabecera {
+	int long1;
+	int long2;
+};
 
 int main(int argc, char *argv[]){
 	if(argc!=3) {
@@ -40,8 +61,8 @@ int main(int argc, char *argv[]){
 
 	//Asignamos host y puertos
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = INADDR_ANY;
-	servaddr.sin_port=htons(atoi(argv[1]));
+	servaddr.sin_addr.s_addr = htons(atoi(host));
+	servaddr.sin_port=htons(atoi(puerto));
 
 	//Hacemos el bind del socket
 	if((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) < 0){
@@ -64,7 +85,7 @@ int main(int argc, char *argv[]){
     	pthread_attr_setdetachstate(&atrib_th, PTHREAD_CREATE_DETACHED);
 	while(1){
 		//Realizo el accept
-		connfd = accept(sockfd, (struct sockaddr *)&client, &len);
+		connfd = accept(sockfd, (struct sockaddr *)&clientaddr, &len);
 		if(connfd < 0){
 			perror("ERROR SERVER no se ha podido aceptar la conexion\n");
 			return -1;
@@ -77,22 +98,3 @@ int main(int argc, char *argv[]){
 }
 
 
-//Cuando se crea el thread, llama a esta funcion de rutina "el main"
-void *servicio(void *arg){
-        int s_srv, tam;
-        s_srv=(long) arg;
-        //while (recv(s_srv, &tam, sizeof(tam), MSG_WAITALL)>0) {
-        recv(s_srv, &tam, sizeof(tam), MSG_WAITALL); //Puede ser buena idea cambiart el MSG por 0
-        int tamn=ntohl(tam);
-        char *dato = malloc(tamn);
-        send(s_srv, dato, tamn, 0);
-	//send(s_srv, "buenas tardes", tamn, 0); //Para debugguear
-        close(s_srv);
-	return NULL;
-}
-
-//para mas adelante
-struct cabecera {
-	int long1;
-	int long2;
-};
