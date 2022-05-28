@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <map.h>
 #include <set.h>
-#include <group.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 
@@ -20,60 +19,80 @@ int main(int argc, char *argv[]){
 	//creamos el socket
 	int sockfd, connfd;				//descriptores tanto de la conexion como de la conexion
 	unsigned int len;				//es la longitud de la direccion del cliente
-	int rx_long, tx_long = 0;			//la longitud en bytes de lo que llega y de lo que se envia
-	int nclients = clients();			//para saber el nº de clientes que hay en este momento en el sistema SEGURAMENTE NO FUNCIONE
-	struct sockaddr_in servaddr, client;
-	char host[100] = getenv("BROKER_HOST");
-	char puerto[10] = getenv("BROKER_PORT");
-	char rx_buff[100];
-	char tx_buff[100];
+	//int rx_long, tx_long = 0;			//la longitud en bytes de lo que llega y de lo que se envia
+	//int nclients = clients();			//para saber el nº de clientes que hay en este momento en el sistema SEGURAMENTE NO FUNCIONE
+	struct sockaddr_in servaddr, clientaddr;
+	char* host = getenv("BROKER_HOST");
+	char* puerto = getenv("BROKER_PORT");
+	int op = 1;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd == -1){
-		perror("El broker no ha podido crear el socket\n");
+		perror("[ERROR] broker no ha podido crear el socket\n");
 		return -1;
 	}
 
-	//Asignamos host y puerto limpiando la estructura antes
-	memset(&servaddr, 0, sizeof(servaddr));
+	//Para reutilizar el puerto inemdiatamente
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op)) < 0){
+                perror("error en setsockopt");
+                return 1;
+        }
 
+	//Asignamos host y puertos
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = inet_addr(host);
-	servaddr.sin_port = htons(puerto);
+	servaddr.sin_addr.s_addr = INADDR_ANY;
+	servaddr.sin_port=htons(atoi(argv[1]));
 
 	//Hacemos el bind del socket
-	if((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0){
-		perror("ERROR SERVER no se ha podido realizar el bind del socket\n");
+	if((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) < 0){
+		perror("[ERROR SERVER] no se ha podido realizar el bind del socket\n");
+		close(sockfd);
 		return -1;
 	}
 
-	//Hacemos el listen
-	if((listen(sockfd, nclients) != 0)){
-		perror("ERROR SERVER no se ha podido inicializar el listen del socket\n");
+	//Hacemos el listen, escucha 5 peticiones y a partir de ahi, libera uno y rellena con la proxima
+	if((listen(sockfd, 5) < 0)){//tal vez hay que cambiarlo por los nclientes
+		perror("[ERROR SERVER] no se ha podido inicializar el listen del socket\n");
+		close(sockfd);
+		return -1;
 	}
 
-	len = sizeof(client);
-
-	//Hacemos el accept de los datos que vengan del socket
+	len = sizeof(clientaddr);
+	pthread_t thid;
+    	pthread_attr_t atrib_th;
+    	pthread_attr_init(&atrib_th); // evita pthread_join
+    	pthread_attr_setdetachstate(&atrib_th, PTHREAD_CREATE_DETACHED);
 	while(1){
+		//Realizo el accept
 		connfd = accept(sockfd, (struct sockaddr *)&client, &len);
 		if(connfd < 0){
 			perror("ERROR SERVER no se ha podido aceptar la conexion\n");
 			return -1;
 		}else{
-			while(1){//Vamos a leer los datos proporcionados por el cliente hasta que se cierre
-				rx_long = read(connfd, rx_buff, sizeof(rx_buff));
-				if(rx_long == -1){
-					perror("ERROR SERVER no se puede leer\n");
-				}else if(rx_long == 0){
-					printf("SERVER, se cerro el socket del cliente");
-					close(connfd);
-					break:
-				}else{
-					write(connfd, tx_buff, strlen(buff_tx));
-					printf("SERVER: %s \n", rx_buff);
-				}
-			}
+			pthread_create(&thid, &atrib_th, servicio, (void *)(long)connfd);
 		}
 	}
+	close(sockfd);
+	return 0;
 }
+
+
+//Cuando se crea el thread, llama a esta funcion de rutina "el main"
+void *servicio(void *arg){
+        int s_srv, tam;
+        s_srv=(long) arg;
+        //while (recv(s_srv, &tam, sizeof(tam), MSG_WAITALL)>0) {
+        recv(s_srv, &tam, sizeof(tam), MSG_WAITALL); //Puede ser buena idea cambiart el MSG por 0
+        int tamn=ntohl(tam);
+        char *dato = malloc(tamn);
+        send(s_srv, dato, tamn, 0);
+	//send(s_srv, "buenas tardes", tamn, 0); //Para debugguear
+        close(s_srv);
+	return NULL;
+}
+
+//para mas adelante
+struct cabecera {
+	int long1;
+	int long2;
+};
