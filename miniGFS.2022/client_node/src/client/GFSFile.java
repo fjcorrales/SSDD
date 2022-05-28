@@ -6,18 +6,43 @@ import java.rmi.*;
 import interfaces.*;
 
 public class GFSFile {
+
+    private File file;
+    private String port,host;
+    private Master m;
+    private int pointer;
+
+
     public GFSFile(String fileName){
+    	pointer = 0;
+    	String p = "GFSPort";
+    	String h = "GFSHost";
+    	port = java.lang.System.getenv(p);
+	host = java.lang.System.getenv(h);
+	try{
+		m = (Master) Naming.lookup("//" + h + ":" + p + "/GFS_master");
+    		file = m.lookup(fileName);
+    	} catch (Exception e){
+		System.out.println("Error en el constructor de GFSFile");
+    	}
     }
     // establece la posición de acceso al fichero
     public void seek(int off) {
+    	pointer = off;
     }
     // obtiene la posición de acceso al fichero
     public int getFilePointer() {
-        return 0;
+        return pointer;
     }
     // obtiene la longitud del fichero en bytes
     public int length() throws RemoteException {
-        return 0;
+	int resultado=0;
+	try{
+		resultado = file.getNumberOfChunks() * 64000000;
+	} catch (Exception e){
+		System.out.println("Error en length");
+	}
+        return resultado;
     }
     // lee de la posición actual del fichero la cantidad de datos pedida;
     // devuelve cantidad realmente leída, 0 si EOF;
