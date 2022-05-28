@@ -1,4 +1,5 @@
 //Puede que sobre algun include
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -36,8 +37,8 @@ __attribute__((destructor)) void fin(void){
 int begin_clnt(void){
 
 	int bytenum;
-	char* host[100] = getenv("BROKER_HOST");
-	char* puerto[10] = getenv("BROKER_PORT");
+	char* host = getenv("BROKER_HOST");
+	char* puerto = getenv("BROKER_PORT");
 	char* buff[100];
 	int sockfd, connfd;
 	struct sockaddr_in servaddr, clientaddr;
@@ -50,17 +51,30 @@ int begin_clnt(void){
 		return -1;
 	}
 
-	host_info = gethostbyname(argv[1]);
+	host_info = gethostbyname(host);
 	//Asignamos host y puerto
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = INADDR_ANY;
-	servaddr.sin_port = htons(puerto);
+	servaddr.sin_addr.s_addr = htons(atoi(host));
+	servaddr.sin_port = htons(atoi(puerto));
 
 	//intentamos la conexion de cliente a socket y de socket a servidor
 	if(connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
 		perror("La conexion al servidor ha fallado\n");
 		close(sockfd);
-		return -1;host_info=gethostbyname(argv[1]);
+		return -1;
+	}
+
+	UUID_t uuid;
+	if(generate_UUID(&uuid)<0){
+		perror("[ERROR] no se pudo generar el uuid cliente\n");
+		close(sockfd);
+		return -1;
+	}
+
+	if(sendto(sockfd, uuid, 0, 0, (struct sockaddr*)&servaddr, sizeof(uuid))<0){
+		perror("[ERROR] no se ha podido enviar el uuid cliente");
+		close(sockfd);
+		return -1;
 	}
 	return 0;
 
