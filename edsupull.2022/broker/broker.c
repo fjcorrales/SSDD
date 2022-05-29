@@ -10,18 +10,23 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-
+#include <string.h>
 //Cuando se crea el thread, llama a esta funcion de rutina "el main"
 void *servicio(void *arg){
-        int s_srv, tam;
-        s_srv=(long) arg;
-        //while (recv(s_srv, &tam, sizeof(tam), MSG_WAITALL)>0) {
-        recv(s_srv, &tam, sizeof(tam), MSG_WAITALL); //Puede ser buena idea cambiart el MSG por 0
-        int tamn=ntohl(tam);
-        char *dato = malloc(tamn);
-        send(s_srv, dato, tamn, 0);
-	//send(s_srv, "buenas tardes", tamn, 0); //Para debugguear
-        close(s_srv);
+        int sockfd, leido;
+	char tam[100];
+        sockfd=(long) arg;
+
+	while((leido = recv(sockfd, tam, 100, 0))>0){
+		//enviar un 1 es respuesta ok
+		printf("UID cliente: %s", tam);
+		char* resp = "1";
+        	if(write(sockfd, resp, strlen(resp))<0){
+			perror("[ERROR BROKER] no ha podido mandar respuesta\n");
+		}
+		
+	}
+	close(sockfd);
 	return NULL;
 }
 
@@ -47,21 +52,22 @@ int main(int argc, char *argv[]){
 	char* puerto = getenv("BROKER_PORT");
 	int op = 1;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd == -1){
 		perror("[ERROR] broker no ha podido crear el socket\n");
 		return -1;
 	}
-
+	printf("Socket creado correctamente\n");
 	//Para reutilizar el puerto inemdiatamente
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op)) < 0){
-                perror("error en setsockopt");
+                perror("[ERROR SERVER] error en setsockopt");
                 return 1;
         }
+	printf("Setsockopt ok\n");
 
 	//Asignamos host y puertos
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htons(atoi(host));
+	servaddr.sin_family = PF_INET;
+	servaddr.sin_addr.s_addr = INADDR_ANY;
 	servaddr.sin_port=htons(atoi(puerto));
 
 	//Hacemos el bind del socket
@@ -70,6 +76,7 @@ int main(int argc, char *argv[]){
 		close(sockfd);
 		return -1;
 	}
+	printf("Bind ok\n");
 
 	//Hacemos el listen, escucha 5 peticiones y a partir de ahi, libera uno y rellena con la proxima
 	if((listen(sockfd, 5) < 0)){//tal vez hay que cambiarlo por los nclientes
@@ -77,6 +84,7 @@ int main(int argc, char *argv[]){
 		close(sockfd);
 		return -1;
 	}
+	printf("Listen ok\n");
 
 	len = sizeof(clientaddr);
 	pthread_t thid;
@@ -90,7 +98,11 @@ int main(int argc, char *argv[]){
 			perror("ERROR SERVER no se ha podido aceptar la conexion\n");
 			return -1;
 		}else{
-			pthread_create(&thid, &atrib_th, servicio, (void *)(long)connfd);
+			if(pthread_create(&thid, &atrib_th, servicio, (void *)(long)connfd)<0){
+				perror("[ERROR SERVER] no ha sido posible crear el thread\n");
+				return -1;
+			}
+			printf("thread creado con exito\n");
 		}
 	}
 	close(sockfd);
