@@ -39,40 +39,49 @@ int begin_clnt(void){
 	int bytenum;
 	char* host = getenv("BROKER_HOST");
 	char* puerto = getenv("BROKER_PORT");
-	char* buff[100];
-	int sockfd, connfd;
+	char buff[100];
+	int sockfd;
 	struct sockaddr_in servaddr, clientaddr;
 	struct hostent *host_info;
 
 	//Creacion del socket
-	sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd ==-1){
 		perror("[ERROR] cliente no ha podido crear el socket\n");
 		return -1;
 	}
+	printf("Socket creado ok\n");
 
 	host_info = gethostbyname(host);
 	//Asignamos host y puerto
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htons(atoi(host));
+	servaddr.sin_family = PF_INET;
+	memcpy(&servaddr.sin_addr.s_addr, host_info->h_addr, host_info->h_length);
 	servaddr.sin_port = htons(atoi(puerto));
 
 	//intentamos la conexion de cliente a socket y de socket a servidor
 	if(connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
-		perror("La conexion al servidor ha fallado\n");
+		perror("[ERROR CLIENTE] La conexion al servidor ha fallado\n");
 		close(sockfd);
 		return -1;
 	}
+	printf("Conexion ok\n");
 
 	UUID_t uuid;
-	if(generate_UUID(&uuid)<0){
-		perror("[ERROR] no se pudo generar el uuid cliente\n");
+	generate_UUID(uuid);
+	printf("%s", uuid);
+	/*if(generate_UUID(uuid)<0){
+		perror("[ERROR CLIENTE] no se pudo generar el uuid cliente\n");
+		close(sockfd);
+		return -1;
+	}*/
+	if(send(sockfd, uuid, strlen(uuid), 0)<0){
+		perror("[ERROR CLIENTE] no se ha podido enviar el uuid cliente\n");
 		close(sockfd);
 		return -1;
 	}
 
-	if(sendto(sockfd, uuid, 0, 0, (struct sockaddr*)&servaddr, sizeof(uuid))<0){
-		perror("[ERROR] no se ha podido enviar el uuid cliente");
+	if(recv(sockfd, buff, 100, 0)<0){
+		perror("[ERROR CLIENTE] no se ha recibido respuesta del broker\n");
 		close(sockfd);
 		return -1;
 	}
@@ -100,7 +109,7 @@ int topics(){ // cuántos temas existen en el sistema
     return 0;
 }
 int clients(){ // cuántos clientes existen en el sistema
-    return 0;
+    return nclients;
 }
 int subscribers(const char *tema){ // cuántos subscriptores tiene este tema
     return 0;
