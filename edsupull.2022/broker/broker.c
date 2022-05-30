@@ -12,7 +12,6 @@
 #include <pthread.h>
 #include <string.h>
 #include "comun.h"
-#include "map.c"
 
 //Cuando se crea el thread, llama a esta funcion de rutina "el main"
 void *servicio(void *arg){
@@ -26,15 +25,17 @@ void *servicio(void *arg){
 		//Si he conseguido leer un uuid, lo añado al mapa en su posicion
 		map_put(clientes, &nclient, &tam);
 		nclient++;
+		//y lo enviamos
+		totClients = map_size(clientes);
+		if(write(sockfd, &totClients, sizeof(totClients))<0){
+			perror("[ERROR THREAD BROKER] no se ha podido enviar el numero de clientes\n");
+		}
+
 		//enviar un 1 es respuesta ok
 		printf("UID cliente: %s", tam);
 		char* resp = "1";
         	if(write(sockfd, resp, strlen(resp))<0){
-			perror("[ERROR BROKER] no ha podido mandar respuesta\n");
-		}
-		totClients = map_size(clientes);
-		if(write(sockfd, &totClients, sizeof(totClients))<0){
-			perror("[ERROR THREAD BROKER] no se ha podido enviar el numero de clientes\n");
+			perror("[ERROR THREAD BROKER] no ha podido mandar respuesta\n");
 		}
 	}
 	close(sockfd);
@@ -48,6 +49,14 @@ struct cabecera {
 };
 
 int main(int argc, char *argv[]){
+
+//////////////////VATIABLES//////////////////////
+
+	set* temas;			//set en el cual guardo los temas del fichero temas
+	temas = set_create(0);
+
+////////////////////////////////////////////////
+
 	if(argc!=3) {
 		fprintf(stderr, "Uso: %s puerto fichero_temas\n", argv[0]);
 		return 1;
@@ -102,6 +111,22 @@ int main(int argc, char *argv[]){
     	pthread_attr_t atrib_th;
     	pthread_attr_init(&atrib_th); // evita pthread_join
     	pthread_attr_setdetachstate(&atrib_th, PTHREAD_CREATE_DETACHED);
+
+	//leemos el fichero de temas y nos llenamos un conjunto con todos los temas
+	FILE *f;
+	f = fopen("temas", "r");
+	char temasAux[2048];
+	while(fgets(temasAux, 2048, f) != NULL){
+		set_add(temas, temasAux);
+	}
+
+	//guardamos la cantidad de temas que tenemos y la enviamos al cliente
+	int ntemas = set_size(temas);
+	if(write(sockfd, &ntemas, sizeof(ntemas))<0){
+		perror("[ERROR BROKER] error al enviar el numero de temas que tenemos");
+		return -1;
+	}
+
 	while(1){
 		//Realizo el accept
 		connfd = accept(sockfd, (struct sockaddr *)&clientaddr, &len);
