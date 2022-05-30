@@ -11,20 +11,31 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <string.h>
+#include "comun.h"
+#include "map.c"
+
 //Cuando se crea el thread, llama a esta funcion de rutina "el main"
 void *servicio(void *arg){
-        int sockfd, leido;
+        int sockfd, leido, nclient=0, totClients;		//nclient sera el numero de cliente
 	char tam[100];
+	map *clientes;
+	clientes = map_create(key_int, 0);
         sockfd=(long) arg;
 
 	while((leido = recv(sockfd, tam, 100, 0))>0){
+		//Si he conseguido leer un uuid, lo añado al mapa en su posicion
+		map_put(clientes, &nclient, &tam);
+		nclient++;
 		//enviar un 1 es respuesta ok
 		printf("UID cliente: %s", tam);
 		char* resp = "1";
         	if(write(sockfd, resp, strlen(resp))<0){
 			perror("[ERROR BROKER] no ha podido mandar respuesta\n");
 		}
-		
+		totClients = map_size(clientes);
+		if(write(sockfd, &totClients, sizeof(totClients))<0){
+			perror("[ERROR THREAD BROKER] no se ha podido enviar el numero de clientes\n");
+		}
 	}
 	close(sockfd);
 	return NULL;
