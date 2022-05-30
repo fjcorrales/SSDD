@@ -12,7 +12,7 @@
 #include "comun.h"
 
 //VARIABLES GLOBALES puede que este mal declararla aqui
-int nclientes = 0;
+int nclientes;
 // se ejecuta antes que el main de la aplicación
 __attribute__((constructor)) void inicio(void){
     if (begin_clnt()<0) {
@@ -39,7 +39,7 @@ int begin_clnt(void){
 	int bytenum;
 	char* host = getenv("BROKER_HOST");
 	char* puerto = getenv("BROKER_PORT");
-	char buff[100];
+	char buff[100], buffaux[100];
 	int sockfd;
 	struct sockaddr_in servaddr, clientaddr;
 	struct hostent *host_info;
@@ -87,6 +87,14 @@ int begin_clnt(void){
 	}
 	return 0;
 
+	if(recv(sockfd, buffaux, 100, 0)<0){
+		perror("[ERROR CLIENTE] no se ha recibido el número de clientes\n");
+		close(sockfd);
+		return -1;
+	}
+	return 0;
+	nclientes = atoi(buffaux);
+
 }
 int end_clnt(void){
     return 0;
@@ -109,7 +117,7 @@ int topics(){ // cuántos temas existen en el sistema
     return 0;
 }
 int clients(){ // cuántos clientes existen en el sistema
-    return nclients;
+    return nclientes;
 }
 int subscribers(const char *tema){ // cuántos subscriptores tiene este tema
     return 0;
