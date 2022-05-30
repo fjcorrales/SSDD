@@ -12,7 +12,7 @@
 #include "comun.h"
 
 //VARIABLES GLOBALES puede que este mal declararla aqui
-int nclientes;
+int nclientes, ntemas;
 // se ejecuta antes que el main de la aplicación
 __attribute__((constructor)) void inicio(void){
     if (begin_clnt()<0) {
@@ -39,7 +39,7 @@ int begin_clnt(void){
 	int bytenum;
 	char* host = getenv("BROKER_HOST");
 	char* puerto = getenv("BROKER_PORT");
-	char buff[100], buffaux[100];
+	char buff[100], buffaux[100], buffAux2[100];
 	int sockfd;
 	struct sockaddr_in servaddr, clientaddr;
 	struct hostent *host_info;
@@ -66,20 +66,32 @@ int begin_clnt(void){
 	}
 	printf("Conexion ok\n");
 
+	//recepcion del numero de temas
+	if(recv(sockfd, buffAux2, 100, 0)<0){
+		perror("[ERROR CLIENTE] no ha llegado el numero de temas\n");
+		return -1;
+	}
+	ntemas = atoi(buffAux2);
+
+	//preparamos el envio del uuid del cliente
 	UUID_t uuid;
 	generate_UUID(uuid);
 	printf("%s", uuid);
-	/*if(generate_UUID(uuid)<0){
-		perror("[ERROR CLIENTE] no se pudo generar el uuid cliente\n");
-		close(sockfd);
-		return -1;
-	}*/
+	//enviamos el uid del cliente
 	if(send(sockfd, uuid, strlen(uuid), 0)<0){
 		perror("[ERROR CLIENTE] no se ha podido enviar el uuid cliente\n");
 		close(sockfd);
 		return -1;
 	}
+	//recibimos el numero de clientes del broker
+	if(recv(sockfd, buffaux, 100, 0)<0){
+		perror("[ERROR CLIENTE] no se ha recibido el número de clientes\n");
+		close(sockfd);
+		return -1;
+	}
+	nclientes = atoi(buffaux);		//guardo el numero de clientes en la variable nclientes
 
+	//recibimos la respuesta del broker
 	if(recv(sockfd, buff, 100, 0)<0){
 		perror("[ERROR CLIENTE] no se ha recibido respuesta del broker\n");
 		close(sockfd);
@@ -87,13 +99,7 @@ int begin_clnt(void){
 	}
 	return 0;
 
-	if(recv(sockfd, buffaux, 100, 0)<0){
-		perror("[ERROR CLIENTE] no se ha recibido el número de clientes\n");
-		close(sockfd);
-		return -1;
-	}
 	return 0;
-	nclientes = atoi(buffaux);
 
 }
 int end_clnt(void){
@@ -114,7 +120,7 @@ int get(char **tema, void **evento, uint32_t *tam_evento){
 
 // operaciones que facilitan la depuración y la evaluación
 int topics(){ // cuántos temas existen en el sistema
-    return 0;
+    return ntemas;
 }
 int clients(){ // cuántos clientes existen en el sistema
     return nclientes;
