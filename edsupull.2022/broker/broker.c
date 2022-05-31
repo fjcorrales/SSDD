@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <map.h>
 #include <set.h>
+#include <queue.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <pthread.h>
@@ -14,21 +15,51 @@
 #include "comun.h"
 
 //Cuando se crea el thread, llama a esta funcion de rutina "el main"
+
+//////////////////VATIABLES//////////////////////
+
+//	set* temasList;			//set en el cual guardo los temas del fichero temas
+//	temasList = set_create(0);
+
+//	map* subscripciones;		//mapa en el que asocio a un cliente con un conjunto de sus subscripciones
+//	subscripciones = map_create(key_string, 0); //la key sera el uuid del cliente en cuestion y su valor asociado el set
+
+	map *clientes;			//mapa para guardar los clientes
+////////////////////////////////////////////////
+
+struct cliente{
+	char* id;
+	set* subscrito;
+	queue* eventos;
+};
+
 void *servicio(void *arg){
-        int sockfd, leido, nclient=0, totClients;		//nclient sera el numero de cliente
-	char tam[100];
-	map *clientes;
-	clientes = map_create(key_int, 0);
+
+	int sockfd, leido;		//nclient sera el numero de cliente
+	char tam[100], buff[1024];
         sockfd=(long) arg;
 
 	while((leido = recv(sockfd, tam, 100, 0))>0){
+
+		recv(sockfd, buff, 1024, 0);		//guardar peticion en el buffer
+
 		//Si he conseguido leer un uuid, lo añado al mapa en su posicion
-		map_put(clientes, &nclient, &tam);
-		nclient++;
-		//y lo enviamos
-		totClients = map_size(clientes);
-		if(write(sockfd, &totClients, sizeof(totClients))<0){
-			perror("[ERROR THREAD BROKER] no se ha podido enviar el numero de clientes\n");
+		struct cliente* nuevo = malloc(sizeof(struct cliente));
+		nuevo->id = tam;
+		nuevo->subscrito = set_create(0);
+		nuevo->eventos = queue_create(0);
+		map_put(clientes, nuevo->id, nuevo);		//en el mapa de clientes guardo el id del cliente como key y valor un objeto de tipo cliente
+
+		//switch para ditinguir que peticiones
+		int pet = atoi(buff);
+		memset(buff, 0, 1024);
+		switch(pet){
+			case 1:	{		//caso en que me pidan el nº de clientes
+				int nclientes = map_size(clientes);
+				sprintf(buff, "%d", nclientes);
+				send(sockfd, buff, 1024, 0);
+			}
+
 		}
 
 		//enviar un 1 es respuesta ok
@@ -50,17 +81,12 @@ struct cabecera {
 
 int main(int argc, char *argv[]){
 
-//////////////////VATIABLES//////////////////////
-
-	set* temas;			//set en el cual guardo los temas del fichero temas
-	temas = set_create(0);
-
-////////////////////////////////////////////////
-
 	if(argc!=3) {
 		fprintf(stderr, "Uso: %s puerto fichero_temas\n", argv[0]);
 		return 1;
 	}
+
+	clientes = map_create(key_string, 0);
 
 	//creamos el socket
 	int sockfd, connfd;				//descriptores tanto de la conexion como de la conexion
@@ -99,7 +125,7 @@ int main(int argc, char *argv[]){
 	printf("Bind ok\n");
 
 	//Hacemos el listen, escucha 5 peticiones y a partir de ahi, libera uno y rellena con la proxima
-	if((listen(sockfd, 5) < 0)){//tal vez hay que cambiarlo por los nclientes
+	if((listen(sockfd, 5) < 0)){
 		perror("[ERROR SERVER] no se ha podido inicializar el listen del socket\n");
 		close(sockfd);
 		return -1;
@@ -113,19 +139,19 @@ int main(int argc, char *argv[]){
     	pthread_attr_setdetachstate(&atrib_th, PTHREAD_CREATE_DETACHED);
 
 	//leemos el fichero de temas y nos llenamos un conjunto con todos los temas
-	FILE *f;
-	f = fopen("temas", "r");
-	char temasAux[2048];
-	while(fgets(temasAux, 2048, f) != NULL){
-		set_add(temas, temasAux);
-	}
+//	FILE *f;
+//	f = fopen("temas", "r");
+//	char temasAux[2048];
+//	while(fgets(temasAux, 2048, f) != NULL){
+//		set_add(temas, temasAux);
+//	}
 
 	//guardamos la cantidad de temas que tenemos y la enviamos al cliente
-	int ntemas = set_size(temas);
-	if(write(sockfd, &ntemas, sizeof(ntemas))<0){
-		perror("[ERROR BROKER] error al enviar el numero de temas que tenemos");
-		return -1;
-	}
+//	int ntemas = set_size(temas);
+//	if(write(sockfd, &ntemas, sizeof(ntemas))<0){
+//		perror("[ERROR BROKER] error al enviar el numero de temas que tenemos");
+//		return -1;
+//	}
 
 	while(1){
 		//Realizo el accept
