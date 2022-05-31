@@ -12,7 +12,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 	private Map<Integer, ChunkImpl> mapaChunks;
 	private ManagerImpl manager;
 	private int repFact;
-	private int tam = 0;
+	public int tam = 0;
 
 	/*
 		En el constructor, por ahora inicializo el mapa que relaciona chunks con chunksImpl,
@@ -27,7 +27,7 @@ public class FileImpl extends UnicastRemoteObject implements File {
 
 	// nº de chunks del fichero
 	public int getNumberOfChunks() throws RemoteException {
-		return 0;
+		return tam;
 	}
 
 	// obtiene información de ubicación de los chunks especificados del fichero
