@@ -26,6 +26,7 @@ public class DataNodeImpl extends UnicastRemoteObject implements DataNode {
     }
     // lee el fichero que contiene un chunk
     public byte [] readChunk(String chunkName) throws RemoteException {
+	int chunkSize = Integer.parseInt(java.lang.System.getenv("CHUNKSIZE"));
 	byte[] chunk = new byte[64000000];
 	try{
 		java.io.File file = new java.io.File("./"+name+"/"+chunkName);
