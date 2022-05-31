@@ -11,8 +11,6 @@
 #include "edsu.h"
 #include "comun.h"
 
-//VARIABLES GLOBALES puede que este mal declararla aqui
-int nclientes, ntemas;
 // se ejecuta antes que el main de la aplicación
 __attribute__((constructor)) void inicio(void){
     if (begin_clnt()<0) {
@@ -32,7 +30,9 @@ __attribute__((destructor)) void fin(void){
         _exit(1);
     }
 }
-
+///////////VARIABLES//////////
+	int sockfd;
+/////////////////////////////
 // operaciones que implementan la funcionalidad del proyecto
 int begin_clnt(void){
 
@@ -40,7 +40,6 @@ int begin_clnt(void){
 	char* host = getenv("BROKER_HOST");
 	char* puerto = getenv("BROKER_PORT");
 	char buff[100], buffaux[100], buffAux2[100];
-	int sockfd;
 	struct sockaddr_in servaddr, clientaddr;
 	struct hostent *host_info;
 
@@ -66,12 +65,6 @@ int begin_clnt(void){
 	}
 	printf("Conexion ok\n");
 
-	//recepcion del numero de temas
-	if(recv(sockfd, buffAux2, 100, 0)<0){
-		perror("[ERROR CLIENTE] no ha llegado el numero de temas\n");
-		return -1;
-	}
-	ntemas = atoi(buffAux2);
 
 	//preparamos el envio del uuid del cliente
 	UUID_t uuid;
@@ -83,13 +76,6 @@ int begin_clnt(void){
 		close(sockfd);
 		return -1;
 	}
-	//recibimos el numero de clientes del broker
-	if(recv(sockfd, buffaux, 100, 0)<0){
-		perror("[ERROR CLIENTE] no se ha recibido el número de clientes\n");
-		close(sockfd);
-		return -1;
-	}
-	nclientes = atoi(buffaux);		//guardo el numero de clientes en la variable nclientes
 
 	//recibimos la respuesta del broker
 	if(recv(sockfd, buff, 100, 0)<0){
@@ -98,9 +84,6 @@ int begin_clnt(void){
 		return -1;
 	}
 	return 0;
-
-	return 0;
-
 }
 int end_clnt(void){
     return 0;
@@ -120,10 +103,17 @@ int get(char **tema, void **evento, uint32_t *tam_evento){
 
 // operaciones que facilitan la depuración y la evaluación
 int topics(){ // cuántos temas existen en el sistema
-    return ntemas;
+    return 0;
 }
 int clients(){ // cuántos clientes existen en el sistema
-    return nclientes;
+	int nclientes;
+	char aux[1024];
+	if(recv(sockfd, aux, 1024, 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado la llamada a clients correctamente\n");
+		return -1;
+	}
+	nclientes = atoi(aux);
+	return nclientes;
 }
 int subscribers(const char *tema){ // cuántos subscriptores tiene este tema
     return 0;
