@@ -108,6 +108,11 @@ int topics(){ // cuántos temas existen en el sistema
 int clients(){ // cuántos clientes existen en el sistema
 	int nclientes;
 	char aux[1024];
+	char *msg = "1";
+	if(send(sockfd, msg, sizeof(msg), 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado el envío de la petición de clients correctamente\n");
+		return -1;
+	}
 	if(recv(sockfd, aux, 1024, 0)<0){
 		perror("[ERROR CLIENTE] no se ha realizado la llamada a clients correctamente\n");
 		return -1;
