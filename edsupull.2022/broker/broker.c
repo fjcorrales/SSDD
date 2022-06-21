@@ -36,37 +36,35 @@ struct cliente{
 void *servicio(void *arg){
 
 	int sockfd, leido;		//nclient sera el numero de cliente
-	char tam[100], buff[1024];
+	char tam[100], buff[100];
         sockfd=(long) arg;
-
-	while((leido = recv(sockfd, tam, 100, 0))>0){
-
-		recv(sockfd, buff, 1024, 0);		//guardar peticion en el buffer
-
+	if(leido = recv(sockfd, tam, 100, 0)){
 		//Si he conseguido leer un uuid, lo añado al mapa en su posicion
 		struct cliente* nuevo = malloc(sizeof(struct cliente));
 		nuevo->id = tam;
 		nuevo->subscrito = set_create(0);
 		nuevo->eventos = queue_create(0);
 		map_put(clientes, nuevo->id, nuevo);		//en el mapa de clientes guardo el id del cliente como key y valor un objeto de tipo cliente
-
+	}
+	//enviar un 1 es respuesta ok
+	printf("UID cliente: %s", tam);
+	char* resp = "1";
+        if(write(sockfd, resp, strlen(resp))<0){
+		perror("[ERROR THREAD BROKER] no ha podido mandar respuesta\n");
+	}
+	while(1){//espera activa para peticiones
+		//para tema peticiones y clients...
+		recv(sockfd, buff, 100, 0);//guardar peticion en el buffer
 		//switch para ditinguir que peticiones
 		int pet = atoi(buff);
-		memset(buff, 0, 1024);
+		memset(buff, 0, 100);//reinicio el buffer
 		switch(pet){
 			case 1:	{		//caso en que me pidan el nº de clientes
 				int nclientes = map_size(clientes);
 				sprintf(buff, "%d", nclientes);
-				send(sockfd, buff, 1024, 0);
+				send(sockfd, buff, 100, 0);
 			}
 
-		}
-
-		//enviar un 1 es respuesta ok
-		printf("UID cliente: %s", tam);
-		char* resp = "1";
-        	if(write(sockfd, resp, strlen(resp))<0){
-			perror("[ERROR THREAD BROKER] no ha podido mandar respuesta\n");
 		}
 	}
 	close(sockfd);
@@ -95,12 +93,13 @@ int main(int argc, char *argv[]){
 	//int nclients = clients();			//para saber el nº de clientes que hay en este momento en el sistema SEGURAMENTE NO FUNCIONE
 	struct sockaddr_in servaddr, clientaddr;
 	char* host = getenv("BROKER_HOST");
-	char* puerto = getenv("BROKER_PORT");
+	char* puerto = argv[1];
 	int op = 1;
 
+	//creo socket
 	sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd == -1){
-		perror("[ERROR] broker no ha podido crear el socket\n");
+		perror("[ERROR SERVER] broker no ha podido crear el socket\n");
 		return -1;
 	}
 	printf("Socket creado correctamente\n");
