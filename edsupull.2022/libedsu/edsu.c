@@ -103,17 +103,29 @@ int get(char **tema, void **evento, uint32_t *tam_evento){
 
 // operaciones que facilitan la depuración y la evaluación
 int topics(){ // cuántos temas existen en el sistema
-    return 0;
+   	int nTopics;
+	char aux[sizeof(int)];
+	char *msg = "2";
+	if(send(sockfd, msg, sizeof(msg), 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado el envío de la petición de topics correctamente\n");
+		return -1;
+	}
+	if(recv(sockfd, aux, sizeof(int), 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado la llamada a topics correctamente\n");
+		return -1;
+	}
+	nTopics = atoi(aux);
+	return nTopics;
 }
 int clients(){ // cuántos clientes existen en el sistema
 	int nclientes;
-	char aux[1024];
+	char aux[sizeof(int)];
 	char *msg = "1";
 	if(send(sockfd, msg, sizeof(msg), 0)<0){
 		perror("[ERROR CLIENTE] no se ha realizado el envío de la petición de clients correctamente\n");
 		return -1;
 	}
-	if(recv(sockfd, aux, 1024, 0)<0){
+	if(recv(sockfd, aux, sizeof(int), 0)<0){
 		perror("[ERROR CLIENTE] no se ha realizado la llamada a clients correctamente\n");
 		return -1;
 	}
