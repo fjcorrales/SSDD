@@ -32,8 +32,14 @@ __attribute__((destructor)) void fin(void){
 }
 ///////////VARIABLES//////////
 	int sockfd;
+	UUID_t uuid;
 /////////////////////////////
 // operaciones que implementan la funcionalidad del proyecto
+struct cabecera{
+	int h1;//tamanyo del tema
+	int h2;//tamanyo del uuid
+	int h3;//tamanyo peticion
+};
 int begin_clnt(void){
 
 	int bytenum;
@@ -67,7 +73,6 @@ int begin_clnt(void){
 
 
 	//preparamos el envio del uuid del cliente
-	UUID_t uuid;
 	generate_UUID(uuid);
 	printf("%s", uuid);
 	//enviamos el uid del cliente
@@ -88,7 +93,36 @@ int begin_clnt(void){
 int end_clnt(void){
     return 0;
 }
+
+
 int subscribe(const char *tema){
+	char *msg = "3";//numero de peticion
+	struct cabecera head;
+	head.h1=htonl(strlen(tema));		//guardo los tamanyos de lo que voy a mandar en la cabecera
+	head.h2=htonl(strlen(uuid));
+	head.h3=htonl(strlen(msg));
+	struct iovec iov[4];
+	iov[0].iov_base=&head;
+	iov[0].iov_len=sizeof(head);
+	iov[1].iov_base=msg;
+	iov[1].iov_len=strlen(msg);
+	iov[2].iov_base=(char *)tema;
+	iov[2].iov_len=strlen(tema);
+	iov[3].iov_base=uuid;
+	iov[3].iov_len=strlen(uuid);
+
+	if(writev(sockfd, iov, 4)<0){
+		perror("[ERROR CLIENTE] no se pudo enviar la informacion de suscripcion\n");
+	}
+	char aux[sizeof(int)];
+	if(recv(sockfd, aux, sizeof(int), 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado la llamada a subscribe correctamente\n");
+		return -1;
+	}
+	if(strcmp(aux, "f")==0){
+		perror("[ERROR CLIENTE] no se pudo realizar suscripcion\n");
+		return -1;
+	}
     return 0;
 }
 int unsubscribe(const char *tema){
@@ -106,9 +140,15 @@ int topics(){ // cuántos temas existen en el sistema
    	int nTopics;
 	char aux[sizeof(int)];
 	char *msg = "2";
-	if(send(sockfd, msg, sizeof(msg), 0)<0){
-		perror("[ERROR CLIENTE] no se ha realizado el envío de la petición de topics correctamente\n");
-		return -1;
+	struct cabecera head;
+	head.h3=htonl(strlen(msg));
+	struct iovec iov[2];
+	iov[0].iov_base=&head;
+	iov[0].iov_len=sizeof(head);
+	iov[1].iov_base=msg;
+	iov[1].iov_len=strlen(msg);
+	if(writev(sockfd, iov, 2)<0){
+		perror("[ERROR CLIENTE] no se pudo enviar la informacion de topics\n");
 	}
 	if(recv(sockfd, aux, sizeof(int), 0)<0){
 		perror("[ERROR CLIENTE] no se ha realizado la llamada a topics correctamente\n");
@@ -120,10 +160,16 @@ int topics(){ // cuántos temas existen en el sistema
 int clients(){ // cuántos clientes existen en el sistema
 	int nclientes;
 	char aux[sizeof(int)];
-	char *msg = "1";
-	if(send(sockfd, msg, sizeof(msg), 0)<0){
-		perror("[ERROR CLIENTE] no se ha realizado el envío de la petición de clients correctamente\n");
-		return -1;
+	char *msg = "1";//numero de peticion
+	struct cabecera head;
+	head.h3=htonl(strlen(msg));
+	struct iovec iov[2];
+	iov[0].iov_base=&head;
+	iov[0].iov_len=sizeof(head);
+	iov[1].iov_base=msg;
+	iov[1].iov_len=strlen(msg);
+	if(writev(sockfd, iov, 2)<0){
+		perror("[ERROR CLIENTE] no se pudo enviar la informacion de clients\n");
 	}
 	if(recv(sockfd, aux, sizeof(int), 0)<0){
 		perror("[ERROR CLIENTE] no se ha realizado la llamada a clients correctamente\n");
@@ -133,7 +179,29 @@ int clients(){ // cuántos clientes existen en el sistema
 	return nclientes;
 }
 int subscribers(const char *tema){ // cuántos subscriptores tiene este tema
-    return 0;
+	char *msg = "4";//numero de peticion
+	int nSubs;
+	char aux[sizeof(int)];
+	struct cabecera head;
+	head.h1=htonl(strlen(tema));		//guardo los tamanyos de lo que voy a mandar en la cabecera
+	head.h3=htonl(strlen(msg));
+	struct iovec iov[3];
+	iov[0].iov_base=&head;
+	iov[0].iov_len=sizeof(head);
+	iov[1].iov_base=msg;
+	iov[1].iov_len=strlen(msg);
+	iov[2].iov_base=(char *)tema;
+	iov[2].iov_len=strlen(tema);
+
+	if(writev(sockfd, iov, 3)<0){
+		perror("[ERROR CLIENTE] no se pudo enviar la informacion de suscripcion\n");
+	}
+	if(recv(sockfd, aux, sizeof(int), 0)<0){
+		perror("[ERROR CLIENTE] no se ha realizado la llamada a clients correctamente\n");
+		return -1;
+	}
+	nSubs = atoi(aux);
+	return nSubs;
 }
 int events() { // nº eventos pendientes de recoger por este cliente
     return 0;
