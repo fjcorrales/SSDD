@@ -102,23 +102,28 @@ void *servicio(void *arg){
 				printf("El tema es: %s\n", tema2);
 				printf("El cliente es: %s\n", usuario);
 				struct cliente *cl = map_get(clientes, usuario, &error);//encuentro el cliente
-				if(error==-1){
-					printf("[ERROR BROKER] el cliente a subscribir no se ha encontrado\n");
-					continue;
-				}
-				struct tema *tm = map_get(temasList, tema2, &error);//encuentro el tema
-				if(error==-1){
-					printf("[ERROR BROKER] el tema a subscribir no se ha encontrado\n");
-					continue;
-				}
-				if((set_add(cl->subscrito, tm)==-1) || (set_add(tm->subs, cl)==-1)){//anyado el tema a las subscripciones del cliente
-					printf("[ERROR BROKER] no se ha podido suscribir el cliente\n");
-					sprintf(buff, "f");
+				if(cl == NULL){
+					sprintf(buff, "%d", -1);
 					send(sockfd, buff, sizeof(int), 0);
 					memset(buff, 0, sizeof(int));//reinicio el buffer
-					continue;
+					break;
+				}
+				struct tema *tm = map_get(temasList, tema2, &error);//encuentro el tema
+				if(tm == NULL){
+					sprintf(buff, "%d", -2);
+					send(sockfd, buff, sizeof(int), 0);
+					memset(buff, 0, sizeof(int));//reinicio el buffer
+					break;
+				}
+				printf("El nombre del tema buscado es: %s\n", tm->nombre);
+				if((set_add(cl->subscrito, tm)==-1) || (set_add(tm->subs, cl)==-1)){//anyado el tema a las subscripciones del cliente
+					printf("[ERROR BROKER] no se ha podido suscribir el cliente\n");
+					sprintf(buff, "%d", -3);
+					send(sockfd, buff, sizeof(int), 0);
+					memset(buff, 0, sizeof(int));//reinicio el buffer
+					break;
 				}else{
-					sprintf(buff, "a");
+					sprintf(buff, "%d", 0);
 					send(sockfd, buff, sizeof(int), 0);
 					memset(buff, 0, sizeof(int));//reinicio el buffer
 				}
@@ -133,14 +138,17 @@ void *servicio(void *arg){
 				tema2[h1]='\0';					//anyado los fin de linea
 				printf("El tema es: %s\n", tema2);
 				struct tema *tm = map_get(temasList, tema2, &error);//encuentro el tema
-				if(error==-1){
-					printf("[ERROR BROKER] el tema a subscribir no se ha encontrado\n");
-					continue;
+				if(tm == NULL){
+					sprintf(buff, "%d", -1);
+					send(sockfd, buff, sizeof(int), 0);
+					memset(buff, 0, sizeof(int));//reinicio el buffer
+					break;
+				}else{
+					int nSubs = set_size(tm->subs);
+					sprintf(buff, "%d", nSubs);
+					send(sockfd, buff, sizeof(int), 0);
+					memset(buff, 0, sizeof(int));//reinicio el buffer
 				}
-				int nSubs = set_size(tm->subs);
-				sprintf(buff, "%d", nSubs);
-				send(sockfd, buff, sizeof(int), 0);
-				memset(buff, 0, sizeof(int));//reinicio el buffer
 				break;
 			}
 		}
@@ -163,21 +171,12 @@ int main(int argc, char *argv[]){
 	temasList = map_create(key_string, 0);
 
 	//creamos el socket
-	char temaB[250];
 	int sockfd, connfd;				//descriptores tanto de la conexion como de la conexion
 	unsigned int len;				//es la longitud de la direccion del cliente
 	struct sockaddr_in servaddr, clientaddr;
 	char* host = getenv("BROKER_HOST");
 	char* puerto = argv[1];
 	int op = 1;
-	printf("BROKER ABRE EL FICHERO TEMAS.TXT\n");
-	//abro el fichero de temas, si no puedo envio mensaje de error
-	FILE *f;
-	f = fopen(argv[2], "r");
-	if(f==NULL){
-		perror("[ERROR SERVER] no se ha podido abrir el fichero de temas");
-	}
-	printf("BROKER ACABA DE ABRIR EL FICHERO TEMAS.TXT\n");
 
 	//creo socket
 	sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -222,9 +221,18 @@ int main(int argc, char *argv[]){
 
 
 
+	printf("BROKER ABRE EL FICHERO TEMAS.TXT\n");
+	//abro el fichero de temas, si no puedo envio mensaje de error
+	FILE *f;
+	char *temaB = NULL;
+	f = fopen(argv[2], "r");
+	if(f==NULL){
+		perror("[ERROR SERVER] no se ha podido abrir el fichero de temas");
+	}
+	printf("BROKER ACABA DE ABRIR EL FICHERO TEMAS.TXT\n");
 	printf("BROKER EMPIEZA A LEER EL FICHERO TEMAS\n");
 	//antes de entrar al bucle de servicio, leo los temas del fichero temas
-	while((fgets(temaB, 250, f))!=NULL){//while para ir sacando linea por linea los temas
+	while(fscanf(f, "%ms", &temaB)>0){//while para ir sacando linea por linea los temas
 		char *aux = strdup(temaB);
 		struct tema *topic = malloc(sizeof(struct tema));
 		topic->nombre = aux;
@@ -232,7 +240,7 @@ int main(int argc, char *argv[]){
 		if(map_put(temasList, topic->nombre, topic)!=0){
 			printf("TEMA NO AÑADIDO\n");
 		}else{
-			printf("TEMA AÑADIDO-> %s", topic->nombre);
+			printf("TEMA AÑADIDO-> %s\n", topic->nombre);
 		}
 	}
 	fclose(f);
