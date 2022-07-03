@@ -119,11 +119,32 @@ int subscribe(const char *tema){
 		perror("[ERROR CLIENTE] no se ha realizado la llamada a subscribe correctamente\n");
 		return -1;
 	}
-	if(strcmp(aux, "f")==0){
-		perror("[ERROR CLIENTE] no se pudo realizar suscripcion\n");
-		return -1;
+	int error = atoi(aux);
+	switch(error){
+
+		case -1:{
+			perror("[ERROR CLIENTE] el cliente no existe\n");
+			return -1;
+			break;
+		}
+
+		case -2:{
+			perror("[ERROR CLIENTE] el tema no existe\n");
+			return -1;
+			break;
+		}
+
+		case -3:{
+			perror("[ERROR CLIENTE] no se ha podido subscribir\n");
+			return -1;
+			break;
+		}
+
+		case 0:{
+			return 0;
+			break;
+		}
 	}
-    return 0;
 }
 int unsubscribe(const char *tema){
     return 0;
@@ -201,7 +222,12 @@ int subscribers(const char *tema){ // cuántos subscriptores tiene este tema
 		return -1;
 	}
 	nSubs = atoi(aux);
-	return nSubs;
+	if(nSubs == -1){
+		perror("[ERROR CLIENTE] no existe el tema\n");
+		return -1;
+	}else{
+		return nSubs;
+	}
 }
 int events() { // nº eventos pendientes de recoger por este cliente
     return 0;
